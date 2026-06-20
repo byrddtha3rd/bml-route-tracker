@@ -23,6 +23,8 @@ let state = {
   lastTick: Date.now(),
 };
 
+let currentScreen = "start";
+
 const els = {
   screenTitle: document.getElementById("screenTitle"),
   gpsBadge: document.getElementById("gpsBadge"),
@@ -50,11 +52,8 @@ const els = {
   stateLabel: document.getElementById("stateLabel"),
   routeLabel: document.getElementById("routeLabel"),
   liveMiles: document.getElementById("liveMiles"),
-  liveFuel: document.getElementById("liveFuel"),
   driveTime: document.getElementById("driveTime"),
   totalTime: document.getElementById("totalTime"),
-  netLabel: document.getElementById("netLabel"),
-  liveNet: document.getElementById("liveNet"),
   pauseResumeButton: document.getElementById("pauseResumeButton"),
   arrivalPrompt: document.getElementById("arrivalPrompt"),
   completeButton: document.getElementById("completeButton"),
@@ -374,7 +373,9 @@ function readSettings() {
 
 function render() {
   if (state.job && state.job.status !== "completed") {
-    showScreen("drive");
+    if (currentScreen !== "complete") {
+      showScreen("drive");
+    }
     renderDrive();
   } else {
     showScreen("start");
@@ -384,6 +385,7 @@ function render() {
 }
 
 function showScreen(name) {
+  currentScreen = name;
   els.startScreen.hidden = name !== "start";
   els.driveScreen.hidden = name !== "drive";
   els.completeScreen.hidden = name !== "complete";
@@ -419,17 +421,11 @@ function renderDrive() {
   els.stateLabel.textContent = isPaused ? (isAutoPaused ? "Resting - Auto Paused" : "Paused") : "Recording Drive";
   els.routeLabel.textContent = job.destinationText || "Current route";
   els.liveMiles.textContent = summary.miles.toFixed(1);
-  els.liveFuel.textContent = money(summary.fuel);
   els.driveTime.textContent = duration(summary.activeMs);
   els.totalTime.textContent = duration(summary.totalMs);
-  els.netLabel.textContent = summary.net < 0 ? "Current Loss" : "Current Net";
-  els.liveNet.textContent = money(summary.net);
   els.pauseResumeButton.textContent = isPaused ? "Resume Tracking" : "Pause Tracking";
   els.pauseResumeButton.classList.toggle("start-button", isPaused);
   els.pauseResumeButton.classList.toggle("safe-button", !isPaused);
-
-  const strip = document.querySelector(".profit-strip");
-  strip.classList.toggle("loss", summary.net < 0);
 
   const arrived = isNearDestination(job);
   els.arrivalPrompt.hidden = !arrived;

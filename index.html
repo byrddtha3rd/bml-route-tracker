@@ -7,12 +7,12 @@
     <title>BML Route Tracker</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=10" />
   </head>
   <body>
     <main class="app-shell">
       <section class="topbar" aria-label="App status">
-        <img class="brand-image" src="assets/bml-header.jpg?v=8" alt="" aria-hidden="true" />
+        <img class="brand-image" src="assets/bml-header.jpg?v=10" alt="" aria-hidden="true" />
         <div class="brand-copy">
           <p class="eyebrow">BML route tracker</p>
           <h1 id="screenTitle" class="screen-title-hidden">Start route</h1>
@@ -86,10 +86,6 @@
             <strong id="liveMiles">0.0</strong>
           </div>
           <div class="metric">
-            <span>Fuel</span>
-            <strong id="liveFuel">$0.00</strong>
-          </div>
-          <div class="metric">
             <span>Drive time</span>
             <strong id="driveTime">0m</strong>
           </div>
@@ -97,11 +93,6 @@
             <span>Total time</span>
             <strong id="totalTime">0m</strong>
           </div>
-        </section>
-
-        <section class="profit-strip" aria-label="Current profit">
-          <span id="netLabel">Current Net</span>
-          <strong id="liveNet">$0.00</strong>
         </section>
 
         <button id="pauseResumeButton" class="primary-button safe-button" type="button">Pause Tracking</button>
@@ -158,6 +149,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=10"></script>
   </body>
 </html>

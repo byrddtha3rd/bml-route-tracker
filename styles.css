@@ -226,8 +226,7 @@ h2 {
 
 .summary-panel span,
 .summary-list span,
-.metric span,
-.profit-strip span {
+.metric span {
   color: var(--muted);
   font-size: 0.95rem;
   font-weight: 800;
@@ -346,34 +345,14 @@ h2 {
   background: var(--surface);
 }
 
+.metric-grid .metric:last-child {
+  grid-column: 1 / -1;
+}
+
 .metric strong {
   display: block;
   margin-top: 8px;
   font-size: 1.65rem;
-}
-
-.profit-strip {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
-  padding: 16px;
-  border-radius: 8px;
-  background: var(--ink);
-  color: #fff;
-}
-
-.profit-strip strong {
-  font-size: 1.8rem;
-}
-
-.profit-strip span {
-  color: #c9d8ce;
-}
-
-.profit-strip.loss {
-  background: var(--red-dark);
 }
 
 #completeButton {
