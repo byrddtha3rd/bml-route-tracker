@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f8f4f" />
+    <title>BML Route Tracker</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css?v=6" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="App status">
+        <img class="brand-image" src="assets/bml-header.jpg?v=6" alt="" aria-hidden="true" />
+        <div class="brand-copy">
+          <p class="eyebrow">BML route tracker</p>
+          <h1 id="screenTitle" class="screen-title-hidden">Start route</h1>
+        </div>
+        <div id="gpsBadge" class="badge badge-muted">GPS ready</div>
+      </section>
+
+      <section id="notice" class="notice" hidden></section>
+
+      <section id="startScreen" class="screen">
+        <form id="startForm" class="form-stack">
+          <label class="field">
+            <span>Gross pay</span>
+            <input id="grossPay" name="grossPay" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+          </label>
+
+          <label class="field">
+            <span>Destination</span>
+            <input id="destination" name="destination" type="text" autocomplete="street-address" placeholder="Optional" />
+          </label>
+
+          <label class="field">
+            <span>Planned miles</span>
+            <input id="plannedMiles" name="plannedMiles" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+          </label>
+
+          <div class="settings-grid" aria-label="Fuel settings">
+            <label class="field compact">
+              <span>MPG</span>
+              <input id="mpg" name="mpg" type="number" min="1" step="0.1" inputmode="decimal" />
+            </label>
+            <label class="field compact">
+              <span>Fuel $/gal</span>
+              <input id="fuelPrice" name="fuelPrice" type="number" min="0" step="0.01" inputmode="decimal" />
+            </label>
+          </div>
+
+          <section class="summary-panel" aria-label="Pre-route estimate">
+            <div>
+              <span>Estimated fuel</span>
+              <strong id="preFuel">$0.00</strong>
+            </div>
+            <div>
+              <span>Potential Profit / Net / Loss</span>
+              <strong id="preNet">$0.00</strong>
+            </div>
+          </section>
+
+          <button class="primary-button start-button" type="submit">Start Route</button>
+        </form>
+
+        <button id="historyToggle" class="plain-button" type="button">Recent routes</button>
+        <section id="historyPanel" class="history-panel" hidden></section>
+      </section>
+
+      <section id="driveScreen" class="screen" hidden>
+        <div id="recordingState" class="recording-state">
+          <span class="recording-dot" aria-hidden="true"></span>
+          <div>
+            <p id="stateLabel">Recording Drive</p>
+            <strong id="routeLabel">Current route</strong>
+          </div>
+        </div>
+
+        <section class="metric-grid" aria-label="Route summary">
+          <div class="metric">
+            <span>Miles</span>
+            <strong id="liveMiles">0.0</strong>
+          </div>
+          <div class="metric">
+            <span>Fuel</span>
+            <strong id="liveFuel">$0.00</strong>
+          </div>
+          <div class="metric">
+            <span>Drive time</span>
+            <strong id="driveTime">0m</strong>
+          </div>
+          <div class="metric">
+            <span>Total time</span>
+            <strong id="totalTime">0m</strong>
+          </div>
+        </section>
+
+        <section class="profit-strip" aria-label="Current profit">
+          <span id="netLabel">Current Net</span>
+          <strong id="liveNet">$0.00</strong>
+        </section>
+
+        <button id="pauseResumeButton" class="primary-button safe-button" type="button">Pause Tracking</button>
+
+        <section id="arrivalPrompt" class="arrival-prompt" hidden>
+          <strong>Likely arrived</strong>
+          <span>You are within 3 miles of the destination.</span>
+        </section>
+
+        <button id="completeButton" class="danger-button" type="button">Complete Job</button>
+      </section>
+
+      <section id="completeScreen" class="screen" hidden>
+        <section class="confirm-panel">
+          <p class="eyebrow">Confirm completion</p>
+          <h2>Complete this job?</h2>
+          <p>This saves the final Profit / Net / Loss summary. Pausing or resting will not complete the job.</p>
+          <div class="button-row">
+            <button id="cancelComplete" class="secondary-button" type="button">Keep Tracking</button>
+            <button id="confirmComplete" class="danger-button" type="button">Complete Job</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="summaryScreen" class="screen" hidden>
+        <section class="summary-card">
+          <p class="eyebrow">Final summary</p>
+          <h2 id="finalOutcome">Profit</h2>
+          <strong id="finalNet" class="final-net">$0.00</strong>
+          <div class="summary-list">
+            <div><span>Miles driven</span><strong id="finalMiles">0.0</strong></div>
+            <div><span>Fuel estimate</span><strong id="finalFuel">$0.00</strong></div>
+            <div><span>Drive time</span><strong id="finalDriveTime">0m</strong></div>
+            <div><span>Total job time</span><strong id="finalTotalTime">0m</strong></div>
+            <div><span>Gross pay</span><strong id="finalGross">$0.00</strong></div>
+          </div>
+        </section>
+        <button id="newRouteButton" class="primary-button start-button" type="button">New Route</button>
+      </section>
+    </main>
+
+    <script src="app.js?v=6"></script>
+  </body>
+</html>
