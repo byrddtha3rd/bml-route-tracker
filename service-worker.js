@@ -1,4 +1,4 @@
-const CACHE_NAME = "truck-route-tracker-v6";
+const CACHE_NAME = "truck-route-tracker-v8";
 const ASSETS = [
   "./",
   "./index.html",

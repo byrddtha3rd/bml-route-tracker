@@ -30,6 +30,7 @@ const els = {
   startScreen: document.getElementById("startScreen"),
   driveScreen: document.getElementById("driveScreen"),
   completeScreen: document.getElementById("completeScreen"),
+  insightsScreen: document.getElementById("insightsScreen"),
   summaryScreen: document.getElementById("summaryScreen"),
   startForm: document.getElementById("startForm"),
   grossPay: document.getElementById("grossPay"),
@@ -39,6 +40,10 @@ const els = {
   fuelPrice: document.getElementById("fuelPrice"),
   preFuel: document.getElementById("preFuel"),
   preNet: document.getElementById("preNet"),
+  insightsButton: document.getElementById("insightsButton"),
+  insightCards: document.getElementById("insightCards"),
+  recommendations: document.getElementById("recommendations"),
+  backFromInsights: document.getElementById("backFromInsights"),
   historyToggle: document.getElementById("historyToggle"),
   historyPanel: document.getElementById("historyPanel"),
   recordingState: document.getElementById("recordingState"),
@@ -90,7 +95,10 @@ function bindEvents() {
   els.cancelComplete.addEventListener("click", () => showScreen("drive"));
   els.confirmComplete.addEventListener("click", completeJob);
   els.newRouteButton.addEventListener("click", resetToStart);
+  els.insightsButton.addEventListener("click", showInsights);
+  els.backFromInsights.addEventListener("click", () => render());
   els.historyToggle.addEventListener("click", toggleHistory);
+  els.historyPanel.addEventListener("click", handleHistoryAction);
 }
 
 function handleEstimateInput() {
@@ -379,11 +387,13 @@ function showScreen(name) {
   els.startScreen.hidden = name !== "start";
   els.driveScreen.hidden = name !== "drive";
   els.completeScreen.hidden = name !== "complete";
+  els.insightsScreen.hidden = name !== "insights";
   els.summaryScreen.hidden = name !== "summary";
   els.screenTitle.textContent = {
     start: "Start route",
     drive: state.job && state.job.status === "active" ? "Drive running" : "Route paused",
     complete: "Complete job",
+    insights: "Insights",
     summary: "Route summary",
   }[name];
 }
@@ -444,19 +454,165 @@ function renderHistory() {
   }
 
   const items = state.history
-    .map((item) => {
+    .map((item, index) => {
       const label = item.destinationText || "Route";
       const outcome = item.net < 0 ? "Loss" : "Profit";
       const date = new Date(item.completedAt).toLocaleDateString();
-      return `<div class="history-item"><strong>${escapeHtml(label)} - ${outcome} ${money(item.net)}</strong><span>${date} | ${item.miles.toFixed(1)} mi | ${duration(item.activeMs)} drive</span></div>`;
+      return `<div class="history-item"><div><strong>${escapeHtml(label)} - ${outcome} ${money(item.net)}</strong><span>${date} | ${item.miles.toFixed(1)} mi | ${duration(item.activeMs)} drive</span></div><button class="mini-danger-button" type="button" data-delete-history="${index}">Delete</button></div>`;
     })
     .join("");
-  els.historyPanel.innerHTML = `<h2>Recent routes</h2>${items}`;
+  els.historyPanel.innerHTML = `<h2>Recent routes</h2>${items}<button class="secondary-button history-clear-button" type="button" data-clear-history="true">Clear Recent Routes</button>`;
 }
 
 function toggleHistory() {
   renderHistory();
   els.historyPanel.hidden = !els.historyPanel.hidden;
+}
+
+function handleHistoryAction(event) {
+  const deleteButton = event.target.closest("[data-delete-history]");
+  const clearButton = event.target.closest("[data-clear-history]");
+
+  if (deleteButton) {
+    const index = Number(deleteButton.dataset.deleteHistory);
+    if (Number.isInteger(index)) {
+      state.history.splice(index, 1);
+      saveHistory();
+      renderHistory();
+    }
+  }
+
+  if (clearButton) {
+    state.history = [];
+    saveHistory();
+    renderHistory();
+  }
+}
+
+function showInsights() {
+  renderInsights();
+  showScreen("insights");
+}
+
+function renderInsights() {
+  const now = new Date();
+  const periods = [
+    { label: "Daily", since: startOfDay(now) },
+    { label: "Weekly", since: startOfWeek(now) },
+    { label: "Monthly", since: startOfMonth(now) },
+  ];
+
+  els.insightCards.innerHTML = periods
+    .map((period) => {
+      const totals = aggregateRoutes(state.history.filter((item) => new Date(item.completedAt) >= period.since));
+      const outcome = totals.net < 0 ? "Loss" : "Net";
+      const rate = totals.miles > 0 ? totals.net / totals.miles : 0;
+      return `<article class="insight-card ${totals.net < 0 ? "loss" : ""}">
+        <span>${period.label}</span>
+        <strong>${outcome} ${money(totals.net)}</strong>
+        <div>${totals.miles.toFixed(1)} miles</div>
+        <small>${money(rate)} / mile</small>
+      </article>`;
+    })
+    .join("");
+
+  els.recommendations.innerHTML = buildRecommendations(state.history)
+    .map((item) => `<div class="recommendation-item"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></div>`)
+    .join("");
+}
+
+function aggregateRoutes(routes) {
+  return routes.reduce(
+    (totals, item) => {
+      totals.count += 1;
+      totals.gross += item.grossPay || 0;
+      totals.fuel += item.fuel || 0;
+      totals.net += item.net || 0;
+      totals.miles += item.miles || 0;
+      totals.activeMs += item.activeMs || 0;
+      return totals;
+    },
+    { count: 0, gross: 0, fuel: 0, net: 0, miles: 0, activeMs: 0 }
+  );
+}
+
+function buildRecommendations(history) {
+  if (!history.length) {
+    return [
+      {
+        title: "Complete a few real routes",
+        body: "After saved jobs build up, BML can compare profit per mile, fuel cost, and driving time.",
+      },
+    ];
+  }
+
+  const monthly = aggregateRoutes(history.filter((item) => new Date(item.completedAt) >= startOfMonth(new Date())));
+  const all = aggregateRoutes(history);
+  const profitPerMile = all.miles > 0 ? all.net / all.miles : 0;
+  const fuelShare = all.gross > 0 ? all.fuel / all.gross : 0;
+  const profitPerHour = all.activeMs > 0 ? all.net / (all.activeMs / 3600000) : 0;
+  const recommendations = [];
+
+  if (monthly.net < 0) {
+    recommendations.push({
+      title: "Monthly loss warning",
+      body: "This month is negative. Raise the minimum gross pay or avoid routes with weak pay against fuel.",
+    });
+  }
+
+  if (profitPerMile < 1.25) {
+    recommendations.push({
+      title: "Watch profit per mile",
+      body: `Current average is ${money(profitPerMile)} per mile. Use this as a floor before accepting a route.`,
+    });
+  } else {
+    recommendations.push({
+      title: "Good mileage return",
+      body: `Average net is ${money(profitPerMile)} per mile. Favor routes that meet or beat this number.`,
+    });
+  }
+
+  if (fuelShare > 0.35) {
+    recommendations.push({
+      title: "Fuel is taking too much",
+      body: "Fuel is over 35% of gross pay. Check fuel price, MPG, weight, and pickup/drop-off distance.",
+    });
+  }
+
+  if (profitPerHour > 0 && profitPerHour < 35) {
+    recommendations.push({
+      title: "Low profit per driving hour",
+      body: `Average net is ${money(profitPerHour)} per drive hour. Long routes may need better pay or fewer delays.`,
+    });
+  }
+
+  const best = history
+    .filter((item) => item.miles > 0)
+    .sort((a, b) => b.net / b.miles - a.net / a.miles)[0];
+
+  if (best) {
+    recommendations.push({
+      title: "Repeat the best pattern",
+      body: `${best.destinationText || "Best route"} produced ${money(best.net / best.miles)} per mile. Compare future offers to that route.`,
+    });
+  }
+
+  return recommendations.slice(0, 4);
+}
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date) {
+  const day = date.getDay();
+  const start = startOfDay(date);
+  start.setDate(start.getDate() - day);
+  return start;
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
 function buildSummary(job) {

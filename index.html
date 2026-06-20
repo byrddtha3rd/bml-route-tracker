@@ -7,12 +7,12 @@
     <title>BML Route Tracker</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=6" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <main class="app-shell">
       <section class="topbar" aria-label="App status">
-        <img class="brand-image" src="assets/bml-header.jpg?v=6" alt="" aria-hidden="true" />
+        <img class="brand-image" src="assets/bml-header.jpg?v=8" alt="" aria-hidden="true" />
         <div class="brand-copy">
           <p class="eyebrow">BML route tracker</p>
           <h1 id="screenTitle" class="screen-title-hidden">Start route</h1>
@@ -64,7 +64,10 @@
           <button class="primary-button start-button" type="submit">Start Route</button>
         </form>
 
-        <button id="historyToggle" class="plain-button" type="button">Recent routes</button>
+        <div class="home-actions">
+          <button id="insightsButton" class="secondary-button" type="button">Insights</button>
+          <button id="historyToggle" class="plain-button" type="button">Recent routes</button>
+        </div>
         <section id="historyPanel" class="history-panel" hidden></section>
       </section>
 
@@ -123,6 +126,21 @@
         </section>
       </section>
 
+      <section id="insightsScreen" class="screen" hidden>
+        <section class="insights-panel">
+          <p class="eyebrow">Business view</p>
+          <h2>Profit / Loss</h2>
+          <section id="insightCards" class="insight-grid" aria-label="Profit and miles by period"></section>
+        </section>
+
+        <section class="insights-panel">
+          <p class="eyebrow">Recommendations</p>
+          <div id="recommendations" class="recommendation-list"></div>
+        </section>
+
+        <button id="backFromInsights" class="secondary-button" type="button">Back</button>
+      </section>
+
       <section id="summaryScreen" class="screen" hidden>
         <section class="summary-card">
           <p class="eyebrow">Final summary</p>
@@ -140,6 +158,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=8"></script>
   </body>
 </html>

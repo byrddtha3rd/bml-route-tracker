@@ -402,6 +402,7 @@ h2 {
 
 .confirm-panel,
 .summary-card,
+.insights-panel,
 .history-panel {
   padding: 18px;
   border-radius: 8px;
@@ -442,6 +443,78 @@ h2 {
   margin-top: 16px;
 }
 
+.home-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.home-actions .plain-button {
+  margin-top: 0;
+}
+
+.insights-panel {
+  margin-bottom: 14px;
+}
+
+.insight-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.insight-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf8;
+}
+
+.insight-card.loss {
+  background: #fff6f5;
+}
+
+.insight-card span,
+.insight-card small,
+.recommendation-item span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.insight-card strong {
+  display: block;
+  margin: 6px 0;
+  font-size: 1.45rem;
+}
+
+.insight-card div {
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.recommendation-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.recommendation-item {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.recommendation-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.recommendation-item strong {
+  font-size: 1.1rem;
+}
+
 .history-panel {
   margin-top: 12px;
 }
@@ -452,8 +525,10 @@ h2 {
 }
 
 .history-item {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 12px 0;
   border-top: 1px solid var(--line);
 }
@@ -463,12 +538,30 @@ h2 {
 }
 
 .history-item strong {
+  display: block;
   font-size: 1.15rem;
 }
 
 .history-item span {
+  display: block;
   color: var(--muted);
   font-weight: 700;
+}
+
+.mini-danger-button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #fee4e2;
+  color: var(--red-dark);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.history-clear-button {
+  margin-top: 12px;
 }
 
 [hidden] {
@@ -492,6 +585,7 @@ h2 {
 
   .settings-grid,
   .metric-grid,
+  .home-actions,
   .button-row {
     grid-template-columns: 1fr;
   }
