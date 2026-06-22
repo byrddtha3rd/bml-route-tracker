@@ -14,6 +14,8 @@ const MOVING_SPEED_MPH = 10;
 const ARRIVAL_RADIUS_MILES = 3;
 const SUSTAINED_MOVING_MS = 60 * 1000;
 const STALE_POINT_MS = 5 * 60 * 1000;
+const DEADHEAD_WARN_SHARE = 0.2;
+const DEADHEAD_ALERT_SHARE = 0.3;
 const GEOCODING_API_KEY = "";
 
 let state = {
@@ -39,7 +41,7 @@ const els = {
   grossPay: document.getElementById("grossPay"),
   destination: document.getElementById("destination"),
   plannedMiles: document.getElementById("plannedMiles"),
-  startOdometer: document.getElementById("startOdometer"),
+  deadheadMiles: document.getElementById("deadheadMiles"),
   mpg: document.getElementById("mpg"),
   fuelPrice: document.getElementById("fuelPrice"),
   preFuel: document.getElementById("preFuel"),
@@ -60,13 +62,16 @@ const els = {
   arrivalPrompt: document.getElementById("arrivalPrompt"),
   completeButton: document.getElementById("completeButton"),
   gpsGapNotice: document.getElementById("gpsGapNotice"),
-  endOdometer: document.getElementById("endOdometer"),
-  finalMilesInput: document.getElementById("finalMilesInput"),
+  actualLoadedMiles: document.getElementById("actualLoadedMiles"),
+  actualDeadheadMiles: document.getElementById("actualDeadheadMiles"),
   cancelComplete: document.getElementById("cancelComplete"),
   confirmComplete: document.getElementById("confirmComplete"),
   finalOutcome: document.getElementById("finalOutcome"),
   finalNet: document.getElementById("finalNet"),
   finalMiles: document.getElementById("finalMiles"),
+  finalLoadedMiles: document.getElementById("finalLoadedMiles"),
+  deadheadSummaryRow: document.getElementById("deadheadSummaryRow"),
+  finalDeadheadMiles: document.getElementById("finalDeadheadMiles"),
   finalFuel: document.getElementById("finalFuel"),
   finalDriveTime: document.getElementById("finalDriveTime"),
   finalTotalTime: document.getElementById("finalTotalTime"),
@@ -82,9 +87,6 @@ function init() {
   bindEvents();
   render();
   startClock();
-  if (state.job && state.job.status !== "completed") {
-    startGpsWatch();
-  }
   registerServiceWorker();
 }
 
@@ -122,8 +124,8 @@ async function startRoute(event) {
 
   const now = Date.now();
   const destinationText = els.destination.value.trim();
-  const plannedMiles = Math.max(0, toNumber(els.plannedMiles.value));
-  const startOdometer = Math.max(0, toNumber(els.startOdometer.value));
+  const loadedMiles = Math.max(0, toNumber(els.plannedMiles.value));
+  const deadheadMiles = Math.max(0, toNumber(els.deadheadMiles.value));
 
   state.settings = readSettings();
   saveSettings();
@@ -133,11 +135,12 @@ async function startRoute(event) {
     id: `job-${now}`,
     grossPay,
     destinationText,
-    plannedMiles,
-    startOdometer,
-    endOdometer: 0,
-    finalMiles: null,
-    mileageSource: "gps",
+    plannedMiles: loadedMiles,
+    deadheadMiles,
+    actualLoadedMiles: null,
+    actualDeadheadMiles: null,
+    finalMiles: loadedMiles + deadheadMiles,
+    mileageSource: "estimate",
     destinationCoords: null,
     status: "active",
     startedAt: now,
@@ -157,23 +160,8 @@ async function startRoute(event) {
 
   state.job = job;
   saveJob();
+  setGpsBadge("Route active", "live");
   render();
-  startGpsWatch();
-
-  if (destinationText) {
-    showNotice("Finding destination for arrival hint...");
-    const coords = await geocodeDestination(destinationText);
-    if (state.job && state.job.id === job.id) {
-      state.job.destinationCoords = coords;
-      saveJob();
-      if (coords) {
-        hideNotice();
-      } else {
-        showNotice("Destination saved, but arrival hint is off because geocoding failed.");
-      }
-      render();
-    }
-  }
 }
 
 function togglePause() {
@@ -214,11 +202,9 @@ function resumeJob(resumedAt) {
 
 function showCompletionConfirm() {
   if (!state.job) return;
-  els.endOdometer.value = "";
-  els.finalMilesInput.value = "";
-  els.gpsGapNotice.textContent = state.job.gpsInterrupted
-    ? "GPS had a gap. Enter final miles or end odometer for the most accurate total."
-    : "Optional: enter odometer or final miles if the app was closed during the route.";
+  els.actualLoadedMiles.value = state.job.actualLoadedMiles ?? state.job.plannedMiles ?? "";
+  els.actualDeadheadMiles.value = state.job.actualDeadheadMiles ?? state.job.deadheadMiles ?? "";
+  els.gpsGapNotice.textContent = "Use the estimated miles or adjust them to what the route actually took.";
   els.gpsGapNotice.hidden = false;
   showScreen("complete");
 }
@@ -240,6 +226,7 @@ function completeJob() {
   saveHistory();
   localStorage.removeItem(STORAGE_KEYS.job);
   stopGpsWatch();
+  setGpsBadge("Complete", "muted");
   renderFinalSummary(completed.summary);
   state.job = null;
   showScreen("summary");
@@ -251,6 +238,7 @@ function resetToStart() {
   els.startForm.reset();
   els.mpg.value = formatInputNumber(state.settings.mpg);
   els.fuelPrice.value = formatInputNumber(state.settings.fuelPrice);
+  setGpsBadge("Ready", "muted");
   hideNotice();
   render();
 }
@@ -396,6 +384,7 @@ function readSettings() {
 
 function render() {
   if (state.job && state.job.status !== "completed") {
+    setGpsBadge(state.job.status === "active" ? "Route active" : "Paused", state.job.status === "active" ? "live" : "warn");
     if (currentScreen !== "complete") {
       showScreen("drive");
     }
@@ -425,7 +414,9 @@ function showScreen(name) {
 
 function renderPreEstimate() {
   const settings = readSettings();
-  const miles = Math.max(0, toNumber(els.plannedMiles.value));
+  const loadedMiles = Math.max(0, toNumber(els.plannedMiles.value));
+  const deadheadMiles = Math.max(0, toNumber(els.deadheadMiles.value));
+  const miles = loadedMiles + deadheadMiles;
   const grossPay = Math.max(0, toNumber(els.grossPay.value));
   const fuel = estimateFuel(miles, settings);
   const net = grossPay - fuel;
@@ -441,25 +432,30 @@ function renderDrive() {
   const isAutoPaused = job.status === "autoPaused";
 
   els.recordingState.classList.toggle("paused", isPaused);
-  els.stateLabel.textContent = isPaused ? (isAutoPaused ? "Resting - Auto Paused" : "Paused") : "Recording Drive";
+  els.stateLabel.textContent = isPaused ? (isAutoPaused ? "Resting" : "Paused") : "Route Active";
   els.routeLabel.textContent = job.destinationText || "Current route";
   els.liveMiles.textContent = summary.miles.toFixed(1);
   els.driveTime.textContent = duration(summary.activeMs);
   els.totalTime.textContent = duration(summary.totalMs);
-  els.pauseResumeButton.textContent = isPaused ? "Resume Tracking" : "Pause Tracking";
+  els.pauseResumeButton.textContent = isPaused ? "Resume Timer" : "Pause Timer";
   els.pauseResumeButton.classList.toggle("start-button", isPaused);
   els.pauseResumeButton.classList.toggle("safe-button", !isPaused);
 
   const arrived = isNearDestination(job);
-  els.arrivalPrompt.hidden = !arrived;
+  els.arrivalPrompt.hidden = true;
 }
 
 function renderFinalSummary(summary) {
   const loss = summary.net < 0;
+  const deadheadLevel = getDeadheadLevel(summary.deadheadMiles, summary.miles);
   els.finalOutcome.textContent = loss ? "Loss" : "Profit";
   els.finalNet.textContent = money(summary.net);
   els.finalNet.classList.toggle("loss", loss);
   els.finalMiles.textContent = summary.miles.toFixed(1);
+  els.finalLoadedMiles.textContent = summary.loadedMiles.toFixed(1);
+  els.finalDeadheadMiles.textContent = formatDeadhead(summary.deadheadMiles, summary.miles);
+  els.deadheadSummaryRow.classList.toggle("deadhead-warn", deadheadLevel === "warn");
+  els.deadheadSummaryRow.classList.toggle("deadhead-alert", deadheadLevel === "alert");
   els.finalFuel.textContent = money(summary.fuel);
   els.finalDriveTime.textContent = duration(summary.activeMs);
   els.finalTotalTime.textContent = duration(summary.totalMs);
@@ -467,24 +463,13 @@ function renderFinalSummary(summary) {
 }
 
 function applyFinalMileage(job) {
-  const manualMiles = toNumber(els.finalMilesInput.value);
-  const endOdometer = toNumber(els.endOdometer.value);
+  const loadedMiles = Math.max(0, toNumber(els.actualLoadedMiles.value) || job.plannedMiles || 0);
+  const deadheadMiles = Math.max(0, toNumber(els.actualDeadheadMiles.value) || job.deadheadMiles || 0);
 
-  job.endOdometer = endOdometer;
-  if (manualMiles > 0) {
-    job.finalMiles = manualMiles;
-    job.mileageSource = "manual";
-    return;
-  }
-
-  if (job.startOdometer > 0 && endOdometer > job.startOdometer) {
-    job.finalMiles = endOdometer - job.startOdometer;
-    job.mileageSource = "odometer";
-    return;
-  }
-
-  job.finalMiles = job.miles;
-  job.mileageSource = "gps";
+  job.actualLoadedMiles = loadedMiles;
+  job.actualDeadheadMiles = deadheadMiles;
+  job.finalMiles = loadedMiles + deadheadMiles;
+  job.mileageSource = "actual";
 }
 
 function renderHistory() {
@@ -498,7 +483,8 @@ function renderHistory() {
       const label = item.destinationText || "Route";
       const outcome = item.net < 0 ? "Loss" : "Profit";
       const date = new Date(item.completedAt).toLocaleDateString();
-      return `<div class="history-item"><div><strong>${escapeHtml(label)} - ${outcome} ${money(item.net)}</strong><span>${date} | ${item.miles.toFixed(1)} mi | ${duration(item.activeMs)} drive</span></div><button class="mini-danger-button" type="button" data-delete-history="${index}">Delete</button></div>`;
+      const deadheadClass = getDeadheadLevel(item.deadheadMiles || 0, item.miles || 0);
+      return `<div class="history-item ${deadheadClass ? `deadhead-${deadheadClass}` : ""}"><div><strong>${escapeHtml(label)} - ${outcome} ${money(item.net)}</strong><span>${date} | ${item.miles.toFixed(1)} mi total | ${formatDeadhead(item.deadheadMiles || 0, item.miles || 0)}</span></div><button class="mini-danger-button" type="button" data-delete-history="${index}">Delete</button></div>`;
     })
     .join("");
   els.historyPanel.innerHTML = `<h2>Recent routes</h2>${items}<button class="secondary-button history-clear-button" type="button" data-clear-history="true">Clear Recent Routes</button>`;
@@ -547,11 +533,12 @@ function renderInsights() {
       const totals = aggregateRoutes(state.history.filter((item) => new Date(item.completedAt) >= period.since));
       const outcome = totals.net < 0 ? "Loss" : "Net";
       const rate = totals.miles > 0 ? totals.net / totals.miles : 0;
-      return `<article class="insight-card ${totals.net < 0 ? "loss" : ""}">
+      const deadheadClass = getDeadheadLevel(totals.deadheadMiles, totals.miles);
+      return `<article class="insight-card ${totals.net < 0 ? "loss" : ""} ${deadheadClass ? `deadhead-${deadheadClass}` : ""}">
         <span>${period.label}</span>
         <strong>${outcome} ${money(totals.net)}</strong>
         <div>${totals.miles.toFixed(1)} miles</div>
-        <small>${money(rate)} / mile</small>
+        <small>${money(rate)} / mile | ${formatDeadhead(totals.deadheadMiles, totals.miles)}</small>
       </article>`;
     })
     .join("");
@@ -569,10 +556,12 @@ function aggregateRoutes(routes) {
       totals.fuel += item.fuel || 0;
       totals.net += item.net || 0;
       totals.miles += item.miles || 0;
+      totals.loadedMiles += item.loadedMiles || Math.max(0, (item.miles || 0) - (item.deadheadMiles || 0));
+      totals.deadheadMiles += item.deadheadMiles || 0;
       totals.activeMs += item.activeMs || 0;
       return totals;
     },
-    { count: 0, gross: 0, fuel: 0, net: 0, miles: 0, activeMs: 0 }
+    { count: 0, gross: 0, fuel: 0, net: 0, miles: 0, loadedMiles: 0, deadheadMiles: 0, activeMs: 0 }
   );
 }
 
@@ -591,6 +580,7 @@ function buildRecommendations(history) {
   const profitPerMile = all.miles > 0 ? all.net / all.miles : 0;
   const fuelShare = all.gross > 0 ? all.fuel / all.gross : 0;
   const profitPerHour = all.activeMs > 0 ? all.net / (all.activeMs / 3600000) : 0;
+  const deadheadShare = all.miles > 0 ? all.deadheadMiles / all.miles : 0;
   const recommendations = [];
 
   if (monthly.net < 0) {
@@ -616,6 +606,18 @@ function buildRecommendations(history) {
     recommendations.push({
       title: "Fuel is taking too much",
       body: "Fuel is over 35% of gross pay. Check fuel price, MPG, weight, and pickup/drop-off distance.",
+    });
+  }
+
+  if (deadheadShare > DEADHEAD_ALERT_SHARE) {
+    recommendations.push({
+      title: "Deadhead is hurting profit",
+      body: `${Math.round(deadheadShare * 100)}% of miles are unpaid deadhead. Raise the minimum rate or avoid pickups this far away.`,
+    });
+  } else if (deadheadShare > DEADHEAD_WARN_SHARE) {
+    recommendations.push({
+      title: "Deadhead needs attention",
+      body: `${Math.round(deadheadShare * 100)}% of miles are unpaid deadhead. Compare closer pickups before taking similar loads.`,
     });
   }
 
@@ -657,7 +659,13 @@ function startOfMonth(date) {
 
 function buildSummary(job) {
   const now = Date.now();
-  const miles = Number.isFinite(job.finalMiles) && job.finalMiles >= 0 ? job.finalMiles : job.miles;
+  const loadedMiles = Number.isFinite(job.actualLoadedMiles) && job.actualLoadedMiles >= 0
+    ? job.actualLoadedMiles
+    : job.plannedMiles || 0;
+  const deadheadMiles = Number.isFinite(job.actualDeadheadMiles) && job.actualDeadheadMiles >= 0
+    ? job.actualDeadheadMiles
+    : job.deadheadMiles || 0;
+  const miles = loadedMiles + deadheadMiles;
   const activeMs = job.status === "active" && job.activeStartedAt
     ? job.activeMs + Math.max(0, now - job.activeStartedAt)
     : job.activeMs;
@@ -668,6 +676,8 @@ function buildSummary(job) {
     destinationText: job.destinationText,
     grossPay: job.grossPay,
     miles,
+    loadedMiles,
+    deadheadMiles,
     fuel,
     net: job.grossPay - fuel,
     activeMs,
@@ -676,6 +686,19 @@ function buildSummary(job) {
     startedAt: job.startedAt,
     completedAt: job.completedAt || now,
   };
+}
+
+function getDeadheadLevel(deadheadMiles, totalMiles) {
+  if (!totalMiles || totalMiles <= 0 || !deadheadMiles) return "";
+  const share = deadheadMiles / totalMiles;
+  if (share > DEADHEAD_ALERT_SHARE) return "alert";
+  if (share > DEADHEAD_WARN_SHARE) return "warn";
+  return "";
+}
+
+function formatDeadhead(deadheadMiles, totalMiles) {
+  const share = totalMiles > 0 ? Math.round((deadheadMiles / totalMiles) * 100) : 0;
+  return `${Number(deadheadMiles || 0).toFixed(1)} (${share}%)`;
 }
 
 function isNearDestination(job) {

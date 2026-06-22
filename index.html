@@ -7,17 +7,17 @@
     <title>BML Route Tracker</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=11" />
+    <link rel="stylesheet" href="styles.css?v=16" />
   </head>
   <body>
     <main class="app-shell">
       <section class="topbar" aria-label="App status">
-        <img class="brand-image" src="assets/bml-header.jpg?v=11" alt="" aria-hidden="true" />
+        <img class="brand-image" src="assets/bml-header.jpg?v=16" alt="" aria-hidden="true" />
         <div class="brand-copy">
           <p class="eyebrow">BML route tracker</p>
           <h1 id="screenTitle" class="screen-title-hidden">Start route</h1>
         </div>
-        <div id="gpsBadge" class="badge badge-muted">GPS ready</div>
+        <div id="gpsBadge" class="badge badge-muted">Ready</div>
       </section>
 
       <section id="notice" class="notice" hidden></section>
@@ -26,7 +26,7 @@
         <form id="startForm" class="form-stack">
           <label class="field">
             <span>Gross pay</span>
-            <input id="grossPay" name="grossPay" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+            <input id="grossPay" name="grossPay" type="number" min="0" step="1" inputmode="numeric" placeholder="0" required />
           </label>
 
           <label class="field">
@@ -35,13 +35,13 @@
           </label>
 
           <label class="field">
-            <span>Planned miles</span>
+            <span>Loaded miles</span>
             <input id="plannedMiles" name="plannedMiles" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
           </label>
 
           <label class="field">
-            <span>Start odometer</span>
-            <input id="startOdometer" name="startOdometer" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+            <span>Deadhead miles</span>
+            <input id="deadheadMiles" name="deadheadMiles" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
           </label>
 
           <div class="settings-grid" aria-label="Fuel settings">
@@ -80,14 +80,14 @@
         <div id="recordingState" class="recording-state">
           <span class="recording-dot" aria-hidden="true"></span>
           <div>
-            <p id="stateLabel">Recording Drive</p>
+            <p id="stateLabel">Route Active</p>
             <strong id="routeLabel">Current route</strong>
           </div>
         </div>
 
         <section class="metric-grid" aria-label="Route summary">
           <div class="metric">
-            <span>Miles</span>
+            <span>Total miles</span>
             <strong id="liveMiles">0.0</strong>
           </div>
           <div class="metric">
@@ -100,11 +100,11 @@
           </div>
         </section>
 
-        <button id="pauseResumeButton" class="primary-button safe-button" type="button">Pause Tracking</button>
+        <button id="pauseResumeButton" class="primary-button safe-button" type="button">Pause Timer</button>
 
         <section id="arrivalPrompt" class="arrival-prompt" hidden>
           <strong>Likely arrived</strong>
-          <span>You are within 3 miles of the destination.</span>
+          <span>You are near the destination.</span>
         </section>
 
         <button id="completeButton" class="danger-button" type="button">Complete Job</button>
@@ -114,18 +114,18 @@
         <section class="confirm-panel">
           <p class="eyebrow">Confirm completion</p>
           <h2>Complete this job?</h2>
-          <p>This saves the final Profit / Net / Loss summary. Pausing or resting will not complete the job.</p>
+          <p>This saves the final Profit / Net / Loss summary. Update actual miles only if they changed.</p>
           <section id="gpsGapNotice" class="notice inline-notice" hidden></section>
           <label class="field">
-            <span>End odometer</span>
-            <input id="endOdometer" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+            <span>Actual loaded miles</span>
+            <input id="actualLoadedMiles" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
           </label>
           <label class="field">
-            <span>Final miles</span>
-            <input id="finalMilesInput" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+            <span>Actual deadhead miles</span>
+            <input id="actualDeadheadMiles" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
           </label>
           <div class="button-row">
-            <button id="cancelComplete" class="secondary-button" type="button">Keep Tracking</button>
+            <button id="cancelComplete" class="secondary-button" type="button">Keep Route Open</button>
             <button id="confirmComplete" class="danger-button" type="button">Complete Job</button>
           </div>
         </section>
@@ -152,7 +152,9 @@
           <h2 id="finalOutcome">Profit</h2>
           <strong id="finalNet" class="final-net">$0.00</strong>
           <div class="summary-list">
-            <div><span>Miles driven</span><strong id="finalMiles">0.0</strong></div>
+            <div><span>Total miles</span><strong id="finalMiles">0.0</strong></div>
+            <div><span>Loaded miles</span><strong id="finalLoadedMiles">0.0</strong></div>
+            <div id="deadheadSummaryRow"><span>Deadhead miles</span><strong id="finalDeadheadMiles">0.0</strong></div>
             <div><span>Fuel estimate</span><strong id="finalFuel">$0.00</strong></div>
             <div><span>Drive time</span><strong id="finalDriveTime">0m</strong></div>
             <div><span>Total job time</span><strong id="finalTotalTime">0m</strong></div>
@@ -163,6 +165,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=16"></script>
   </body>
 </html>
