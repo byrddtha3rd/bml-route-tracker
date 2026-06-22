@@ -13,6 +13,7 @@ const AUTO_PAUSE_MS = 90 * 60 * 1000;
 const MOVING_SPEED_MPH = 10;
 const ARRIVAL_RADIUS_MILES = 3;
 const SUSTAINED_MOVING_MS = 60 * 1000;
+const STALE_POINT_MS = 5 * 60 * 1000;
 const GEOCODING_API_KEY = "";
 
 let state = {
@@ -38,6 +39,7 @@ const els = {
   grossPay: document.getElementById("grossPay"),
   destination: document.getElementById("destination"),
   plannedMiles: document.getElementById("plannedMiles"),
+  startOdometer: document.getElementById("startOdometer"),
   mpg: document.getElementById("mpg"),
   fuelPrice: document.getElementById("fuelPrice"),
   preFuel: document.getElementById("preFuel"),
@@ -57,6 +59,9 @@ const els = {
   pauseResumeButton: document.getElementById("pauseResumeButton"),
   arrivalPrompt: document.getElementById("arrivalPrompt"),
   completeButton: document.getElementById("completeButton"),
+  gpsGapNotice: document.getElementById("gpsGapNotice"),
+  endOdometer: document.getElementById("endOdometer"),
+  finalMilesInput: document.getElementById("finalMilesInput"),
   cancelComplete: document.getElementById("cancelComplete"),
   confirmComplete: document.getElementById("confirmComplete"),
   finalOutcome: document.getElementById("finalOutcome"),
@@ -118,6 +123,7 @@ async function startRoute(event) {
   const now = Date.now();
   const destinationText = els.destination.value.trim();
   const plannedMiles = Math.max(0, toNumber(els.plannedMiles.value));
+  const startOdometer = Math.max(0, toNumber(els.startOdometer.value));
 
   state.settings = readSettings();
   saveSettings();
@@ -128,6 +134,10 @@ async function startRoute(event) {
     grossPay,
     destinationText,
     plannedMiles,
+    startOdometer,
+    endOdometer: 0,
+    finalMiles: null,
+    mileageSource: "gps",
     destinationCoords: null,
     status: "active",
     startedAt: now,
@@ -141,6 +151,7 @@ async function startRoute(event) {
     miles: 0,
     points: [],
     lastPoint: null,
+    gpsInterrupted: false,
     summary: null,
   };
 
@@ -203,6 +214,12 @@ function resumeJob(resumedAt) {
 
 function showCompletionConfirm() {
   if (!state.job) return;
+  els.endOdometer.value = "";
+  els.finalMilesInput.value = "";
+  els.gpsGapNotice.textContent = state.job.gpsInterrupted
+    ? "GPS had a gap. Enter final miles or end odometer for the most accurate total."
+    : "Optional: enter odometer or final miles if the app was closed during the route.";
+  els.gpsGapNotice.hidden = false;
   showScreen("complete");
 }
 
@@ -212,6 +229,7 @@ function completeJob() {
   if (state.job.status === "active" && state.job.activeStartedAt) {
     state.job.activeMs += Math.max(0, now - state.job.activeStartedAt);
   }
+  applyFinalMileage(state.job);
   state.job.activeStartedAt = null;
   state.job.completedAt = now;
   state.job.status = "completed";
@@ -301,8 +319,13 @@ function processPoint(point) {
     computedSpeed = Number.isFinite(computedSpeed) ? computedSpeed : distance / hours;
   }
 
-  const validDistance = distance >= 0.01 && distance < 25;
+  const stalePoint = last && point.time - last.time > STALE_POINT_MS;
+  const validDistance = !stalePoint && distance >= 0.01 && distance < 25;
   const moving = computedSpeed >= MOVING_SPEED_MPH;
+
+  if (stalePoint) {
+    job.gpsInterrupted = true;
+  }
 
   if (job.status === "active" && validDistance) {
     job.miles += distance;
@@ -441,6 +464,27 @@ function renderFinalSummary(summary) {
   els.finalDriveTime.textContent = duration(summary.activeMs);
   els.finalTotalTime.textContent = duration(summary.totalMs);
   els.finalGross.textContent = money(summary.grossPay);
+}
+
+function applyFinalMileage(job) {
+  const manualMiles = toNumber(els.finalMilesInput.value);
+  const endOdometer = toNumber(els.endOdometer.value);
+
+  job.endOdometer = endOdometer;
+  if (manualMiles > 0) {
+    job.finalMiles = manualMiles;
+    job.mileageSource = "manual";
+    return;
+  }
+
+  if (job.startOdometer > 0 && endOdometer > job.startOdometer) {
+    job.finalMiles = endOdometer - job.startOdometer;
+    job.mileageSource = "odometer";
+    return;
+  }
+
+  job.finalMiles = job.miles;
+  job.mileageSource = "gps";
 }
 
 function renderHistory() {
@@ -613,20 +657,22 @@ function startOfMonth(date) {
 
 function buildSummary(job) {
   const now = Date.now();
+  const miles = Number.isFinite(job.finalMiles) && job.finalMiles >= 0 ? job.finalMiles : job.miles;
   const activeMs = job.status === "active" && job.activeStartedAt
     ? job.activeMs + Math.max(0, now - job.activeStartedAt)
     : job.activeMs;
   const totalMs = Math.max(0, (job.completedAt || now) - job.startedAt);
-  const fuel = estimateFuel(job.miles, state.settings);
+  const fuel = estimateFuel(miles, state.settings);
   return {
     id: job.id,
     destinationText: job.destinationText,
     grossPay: job.grossPay,
-    miles: job.miles,
+    miles,
     fuel,
     net: job.grossPay - fuel,
     activeMs,
     totalMs,
+    mileageSource: job.mileageSource || "gps",
     startedAt: job.startedAt,
     completedAt: job.completedAt || now,
   };

@@ -7,12 +7,12 @@
     <title>BML Route Tracker</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=10" />
+    <link rel="stylesheet" href="styles.css?v=11" />
   </head>
   <body>
     <main class="app-shell">
       <section class="topbar" aria-label="App status">
-        <img class="brand-image" src="assets/bml-header.jpg?v=10" alt="" aria-hidden="true" />
+        <img class="brand-image" src="assets/bml-header.jpg?v=11" alt="" aria-hidden="true" />
         <div class="brand-copy">
           <p class="eyebrow">BML route tracker</p>
           <h1 id="screenTitle" class="screen-title-hidden">Start route</h1>
@@ -37,6 +37,11 @@
           <label class="field">
             <span>Planned miles</span>
             <input id="plannedMiles" name="plannedMiles" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+          </label>
+
+          <label class="field">
+            <span>Start odometer</span>
+            <input id="startOdometer" name="startOdometer" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
           </label>
 
           <div class="settings-grid" aria-label="Fuel settings">
@@ -110,6 +115,15 @@
           <p class="eyebrow">Confirm completion</p>
           <h2>Complete this job?</h2>
           <p>This saves the final Profit / Net / Loss summary. Pausing or resting will not complete the job.</p>
+          <section id="gpsGapNotice" class="notice inline-notice" hidden></section>
+          <label class="field">
+            <span>End odometer</span>
+            <input id="endOdometer" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+          </label>
+          <label class="field">
+            <span>Final miles</span>
+            <input id="finalMilesInput" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Optional" />
+          </label>
           <div class="button-row">
             <button id="cancelComplete" class="secondary-button" type="button">Keep Tracking</button>
             <button id="confirmComplete" class="danger-button" type="button">Complete Job</button>
@@ -149,6 +163,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=11"></script>
   </body>
 </html>
